@@ -8,6 +8,7 @@ add_library(FuryEqualizeCore SHARED
     src/audio_engine.cpp
     src/dsp/biquad.cpp
     src/dsp/compressor.cpp
+    src/dsp/sniper_preset.cpp
     src/wasapi/wasapi_engine.cpp
 )
 

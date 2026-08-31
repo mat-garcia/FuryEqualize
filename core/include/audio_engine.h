@@ -15,6 +15,9 @@ extern "C" {
 #endif
 
 #include <stdint.h>
+#ifdef __cplusplus
+#include "dsp/sniper_preset.h"
+#endif
 
 // Códigos de retorno
 #define FURY_OK 0
@@ -53,6 +56,14 @@ typedef struct {
 
 // Retorna qtd de devices. Se outDevices != nullptr, preenche até maxCount.
 FURY_API int32_t AudioEngine_GetDevices(FuryDeviceInfo* outDevices, int32_t maxCount);
+
+// --- Master ---
+FURY_API int32_t AudioEngine_SetMasterVolume(float db);
+FURY_API float AudioEngine_GetMasterVolume();
+
+// --- Sniper Preset (cirúrgico) ---
+FURY_API int32_t AudioEngine_SetSniperPreset(const SniperPresetParams* params);
+FURY_API int32_t AudioEngine_LoadSniperPresetJson(const char* path);
 
 // --- Telemetry ---
 FURY_API float AudioEngine_GetInputLevelDb();  // pico atual

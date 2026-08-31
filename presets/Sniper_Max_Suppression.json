@@ -1,0 +1,70 @@
+{
+  "preset_name": "Sniper_Max_Suppression",
+  "self_suppression": {
+    "weapon_focus": {
+      "lfe_gate": -50.0,
+      "front_lock_eng": 4.00,
+      "front_lock_rel": 2.00,
+      "fc_crack": -9.44,
+      "tier2_centered": -3.60,
+      "depth_per_band": {
+        "front_lo_duck": 15.0,
+        "front_mid_duck": 24.0,
+        "front_hi_duck": 24.0,
+        "fc_lo_duck": 15.0,
+        "fc_mid_duck": 24.0,
+        "fc_hi_duck": 24.0
+      }
+    },
+    "level_tracking": {
+      "prop_thresh": -41.0,
+      "prop_ratio": 8.0,
+      "prop_hold": 200.0,
+      "front_th_lo": -8.82,
+      "front_th_mid": -7.22,
+      "front_th_hi": -5.96,
+      "fc_th_lo": -8.82,
+      "fc_th_mid": -6.72,
+      "fc_th_hi": -5.49,
+      "timing": {
+        "attack": 0.51,
+        "release": 120.0,
+        "hold": 190.0
+      }
+    },
+    "dialog_guard": {
+      "fc_tr_ratio": 6.00,
+      "fc_tr_fast": 3.71,
+      "fc_tr_slow": 40.0,
+      "fc_tr_hold": 20.0
+    }
+  },
+  "footstep_focus": {
+    "coherence_eng": 0.30,
+    "coherence_rel": 0.50,
+    "sub_weight": 0.29,
+    "pan_confirm": 8.03,
+    "center_confirm": -23.3,
+    "step_duck": 22.0,
+    "step_hold": 122.0
+  },
+  "footstep_boost": {
+    "coherence_max": 0.25,
+    "pan_min": 8.03,
+    "sub_max": 0.24,
+    "onset_rise": 6.00,
+    "step_lift": 5.98,
+    "lift_hold": 64.0
+  },
+  "reflection_control": {
+    "hold": 0.0,
+    "tilt_thresh": -14.8,
+    "depth": 12.0,
+    "attack": 0.00,
+    "release": 38.0,
+    "boom_thr": -55.0,
+    "boom_depth": -34.8,
+    "boom_rel": 23.0
+  },
+  "master_volume_db": 6.0
+}

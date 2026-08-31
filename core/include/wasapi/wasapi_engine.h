@@ -8,6 +8,7 @@
 #include <string>
 #include "../dsp/biquad.h"
 #include "../dsp/compressor.h"
+#include "../dsp/sniper_preset.h"
 #include "../audio_engine.h"
 
 namespace fury::wasapi {
@@ -27,6 +28,10 @@ public:
     int  getBufferSize() const { return bufferFrames_; }
     void setRenderDevice(const std::string& renderId) { renderDeviceId_ = renderId; }
     std::string getRenderDevice() const { return renderDeviceId_; }
+    void setMasterVolume(float db);
+    float getMasterVolume() const { return masterVolumeDb_; }
+    void setSniperPreset(const SniperPresetParams& p);
+    int loadSniperPresetJson(const std::string& path);
 
     float inputLevelDb() const { return inputLevelDb_.load(); }
     float gainReductionDb() const { return gainReductionDb_.load(); }
@@ -55,6 +60,9 @@ private:
     dsp::Compressor compL_, compR_; // estéreo; para 7.1 reusamos compL_ linked
     dsp::Compressor::Params compParams_{};
     float eqLow_=0, eqPeak_=0, eqHigh_=0;
+    float masterVolumeDb_ = 0.0f;
+    float masterLinear_ = 1.0f;
+    SniperPresetParams sniperPreset_{};
 
     std::atomic<float> inputLevelDb_{-120.f};
     std::atomic<float> gainReductionDb_{0.f};

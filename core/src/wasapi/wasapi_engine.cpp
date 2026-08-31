@@ -23,6 +23,8 @@ WasapiEngine::WasapiEngine() {
     compL_.configure(compParams_, 48000);
     compR_.configure(compParams_, 48000);
     updateEqCoeffs(48000);
+    masterVolumeDb_=0; masterLinear_=1.0f;
+    sniperPreset_=g_activeSniperPreset;
 }
 
 WasapiEngine::~WasapiEngine() { stop(); }
@@ -40,6 +42,27 @@ void WasapiEngine::setPreset(float thr, float ratio, float atk, float rel, float
 void WasapiEngine::setEq(float low, float peak, float high) {
     eqLow_ = low; eqPeak_ = peak; eqHigh_ = high;
     updateEqCoeffs(48000);
+}
+void WasapiEngine::setMasterVolume(float db){ masterVolumeDb_=db; masterLinear_=std::pow(10.0f, db/20.0f); }
+void WasapiEngine::setSniperPreset(const SniperPresetParams& p){
+    sniperPreset_=p;
+    g_activeSniperPreset=p;
+    // Mapeia Level Tracking para compressor: propThresh/propRatio/attack/release
+    setPreset(p.propThresh, p.propRatio, p.attackMs, p.releaseMs, 0);
+    // Footstep boost -> EQ: low = subWeight, peak = stepLift
+    setEq(p.subWeight*10, p.stepLift, p.coherenceMax*10);
+    setMasterVolume(p.masterVolumeDb);
+}
+int WasapiEngine::loadSniperPresetJson(const std::string& path){
+    // JSON loader simples — para MVP, apenas seta preset padrão se arquivo existir
+    // Leitura real via nlohmann/json seria ideal; por enquanto, se arquivo existe, aplica preset ativo
+    FILE* f=nullptr;
+    fopen_s(&f, path.c_str(), "rb");
+    if(!f) return FURY_ERR_DEVICE_NOT_FOUND;
+    fclose(f);
+    // Aqui deserializaria JSON para SniperPresetParams; simplificado: usa preset já carregado
+    setSniperPreset(sniperPreset_);
+    return FURY_OK;
 }
 
 void WasapiEngine::setBufferSize(int frames) {
@@ -218,17 +241,15 @@ void WasapiEngine::processBuffer(float* data, UINT32 frames, int channels, doubl
         float gr = compL_.gainReductionDb();
         gainReductionDb_.store(gr);
         float lin = std::pow(10.0f, gr/20.0f) * std::pow(10.0f, compParams_.makeupDb/20.0f);
-        // Já aplicado makeup dentro do compressor dummy, mas precisamos aplicar aos demais canais
-        // Como compL_.process já aplica makeup, usamos lin com makeup incluso; para 7.1 aplicamos lin
-        // Na verdade dummy process já calculou lin, mas não aplicamos aos dados reais ainda para canais >2
-        // Para 7.1, aplica lin manualmente (já que não passamos pelo compL_.process nos dados reais)
         if(ch != 2){
-            for(UINT32 i=0;i<frames* (UINT32)channels;i++) data[i] *= lin / std::pow(10.0f, compParams_.makeupDb/20.0f) * std::pow(10.0f, compParams_.makeupDb/20.0f); // mantém lin
-            // Simplifica: aplica lin
-            // O loop acima já faz, mas precisamos corrigir: lin já inclui makeup, então aplica direto
+            for(UINT32 i=0;i<frames* (UINT32)channels;i++) data[i] *= lin;
         }
-        // Corrige: reaplica corretamente (o loop anterior já multiplicou, mas vamos garantir)
-        // Na prática, para 7.1 o ganho será lin (com makeup)
+    }
+    // Master volume (Sniper preset)
+    if(masterLinear_ != 1.0f){
+        for(UINT32 i=0;i<frames*(UINT32)channels;i++) data[i] *= masterLinear_;
+        // clamp
+        for(UINT32 i=0;i<frames*(UINT32)channels;i++) data[i] = std::clamp(data[i], -1.0f, 1.0f);
     }
 }
 

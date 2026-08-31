@@ -31,7 +31,14 @@ public class MainViewModel : INotifyPropertyChanged
     public string RenderDeviceLabel => SelectedRenderDevice?.Name ?? "Auto (VB-Cable)";
 
     private Preset _selectedPreset = PresetService.Presets[0];
-    public Preset SelectedPreset { get => _selectedPreset; set { _selectedPreset = value; OnPropertyChanged(); PresetService.Apply(value); StatusText = $"Preset: {value.Name}"; } }
+    public Preset SelectedPreset { get => _selectedPreset; set {
+        _selectedPreset = value; OnPropertyChanged(); PresetService.Apply(value);
+        // Se for Sniper, sincroniza master
+        if(value.Name.Contains("Sniper")){
+            try{ var sp = SniperPresetService.LoadDefault(); MasterVolumeDb = sp.masterVolumeDb; } catch{}
+        }
+        StatusText = $"Preset: {value.Name}";
+    } }
 
     private int _selectedBuffer = 256;
     public int SelectedBuffer { get => _selectedBuffer; set { _selectedBuffer = value; OnPropertyChanged(); if (AudioEngineInterop.IsAvailable) AudioEngineInterop.AudioEngine_SetBuffer(value); } }
@@ -48,6 +55,10 @@ public class MainViewModel : INotifyPropertyChanged
 
     private double _gainReduction;
     public double GainReduction { get => _gainReduction; set { _gainReduction = value; OnPropertyChanged(); } }
+
+    private float _masterVolumeDb = 6.0f;
+    public float MasterVolumeDb { get => _masterVolumeDb; set { _masterVolumeDb = Math.Clamp(value, -24, 24); OnPropertyChanged(); OnPropertyChanged(nameof(MasterVolumePercent)); if(AudioEngineInterop.IsAvailable) AudioEngineInterop.AudioEngine_SetMasterVolume(_masterVolumeDb); } }
+    public int MasterVolumePercent => (int)(Math.Pow(10, MasterVolumeDb/20)*100);
 
     public MainViewModel()
     {
