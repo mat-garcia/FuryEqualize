@@ -8,6 +8,7 @@
 #include <string>
 #include "../dsp/biquad.h"
 #include "../dsp/compressor.h"
+#include "../audio_engine.h"
 
 namespace fury::wasapi {
 
@@ -30,7 +31,7 @@ public:
     float inputLevelDb() const { return inputLevelDb_.load(); }
     float gainReductionDb() const { return gainReductionDb_.load(); }
 
-    int enumerateDevices(struct FuryDeviceInfo* out, int maxCount); // forward decl via audio_engine.h
+    int enumerateDevices(::FuryDeviceInfo* out, int maxCount);
     // Helper para auto-detectar VB-Cable / Hi-Fi Cable
     std::string findVirtualCableDevice();
 

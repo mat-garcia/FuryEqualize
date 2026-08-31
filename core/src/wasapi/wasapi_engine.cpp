@@ -101,7 +101,7 @@ std::string WasapiEngine::findVirtualCableDevice() {
     return found;
 }
 
-int WasapiEngine::enumerateDevices(FuryDeviceInfo* out, int maxCount) {
+int WasapiEngine::enumerateDevices(::FuryDeviceInfo* out, int maxCount) {
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     IMMDeviceEnumerator* pEnum=nullptr;
     HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), (void**)&pEnum);
