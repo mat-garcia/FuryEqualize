@@ -35,9 +35,9 @@
             <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions>
             <StackPanel Grid.Column="0" Margin="0,0,12,0">
                 <TextBlock Text="Captura (loopback)"/>
-                <ComboBox ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" DisplayMemberPath="name"/>
+                <ComboBox ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" DisplayMemberPath="Name"/>
                 <TextBlock Text="Render (VB-Cable)"/>
-                <ComboBox ItemsSource="{Binding RenderDevices}" SelectedItem="{Binding SelectedRenderDevice}" DisplayMemberPath="name"/>
+                <ComboBox ItemsSource="{Binding RenderDevices}" SelectedItem="{Binding SelectedRenderDevice}" DisplayMemberPath="Name"/>
                 <TextBlock Text="Buffer (latência)"/>
                 <ComboBox ItemsSource="{Binding BufferSizes}" SelectedItem="{Binding SelectedBuffer}"/>
                 <StackPanel Orientation="Horizontal">

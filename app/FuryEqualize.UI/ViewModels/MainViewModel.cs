@@ -9,27 +9,26 @@ namespace FuryEqualize.UI.ViewModels;
 public class MainViewModel : INotifyPropertyChanged
 {
     private readonly DispatcherTimer _meterTimer;
-    public ObservableCollection<FuryDeviceInfo> Devices { get; } = new();
+    public ObservableCollection<DeviceItem> Devices { get; } = new();
     public ObservableCollection<Preset> Presets { get; } = new(PresetService.Presets);
     public ObservableCollection<int> BufferSizes { get; } = new() { 128, 256, 512, 1024 };
 
-    private FuryDeviceInfo? _selectedDevice;
-    public FuryDeviceInfo? SelectedDevice { get => _selectedDevice; set { _selectedDevice = value; OnPropertyChanged(); } }
+    private DeviceItem? _selectedDevice;
+    public DeviceItem? SelectedDevice { get => _selectedDevice; set { _selectedDevice = value; OnPropertyChanged(); } }
 
     // Render virtual cable (VB-Cable): auto-detect por padrão
-    public ObservableCollection<FuryDeviceInfo> RenderDevices { get; } = new();
-    private FuryDeviceInfo? _selectedRenderDevice;
-    public FuryDeviceInfo? SelectedRenderDevice {
+    public ObservableCollection<DeviceItem> RenderDevices { get; } = new();
+    private DeviceItem? _selectedRenderDevice;
+    public DeviceItem? SelectedRenderDevice {
         get => _selectedRenderDevice;
         set { _selectedRenderDevice = value; OnPropertyChanged(); OnPropertyChanged(nameof(RenderDeviceLabel));
               if (AudioEngineInterop.IsAvailable && value != null) {
-                  // "auto" = deixa engine auto-detectar; senão usa id explícito
-                  var id = value.Value.id == "__auto" ? null : value.Value.id == "__none" ? "none" : value.Value.id;
+                  var id = value.Id == "__auto" ? null : value.Id == "__none" ? "none" : value.Id;
                   AudioEngineInterop.AudioEngine_SetRenderDevice(id);
               }
         }
     }
-    public string RenderDeviceLabel => SelectedRenderDevice?.name ?? "Auto (VB-Cable)";
+    public string RenderDeviceLabel => SelectedRenderDevice?.Name ?? "Auto (VB-Cable)";
 
     private Preset _selectedPreset = PresetService.Presets[0];
     public Preset SelectedPreset { get => _selectedPreset; set { _selectedPreset = value; OnPropertyChanged(); PresetService.Apply(value); StatusText = $"Preset: {value.Name}"; } }
@@ -65,16 +64,21 @@ public class MainViewModel : INotifyPropertyChanged
         _meterTimer.Start();
     }
 
+    static DeviceItem Map(FuryDeviceInfo f) => new DeviceItem {
+        Id = f.id ?? "", Name = string.IsNullOrWhiteSpace(f.name) ? (f.id ?? "") : f.name,
+        Channels = f.channels, SampleRate = f.sampleRate, IsDefault = f.isDefault==1
+    };
+
     public void RefreshDevices()
     {
         Devices.Clear();
         RenderDevices.Clear();
         if (!AudioEngineInterop.IsAvailable)
         {
-            Devices.Add(new FuryDeviceInfo { id = "", name = "⚠ DLL não encontrada — modo mock", channels = 2, sampleRate = 48000, isDefault = 1 });
+            Devices.Add(new DeviceItem { Id = "", Name = "⚠ DLL não encontrada — modo mock", Channels = 2, SampleRate = 48000, IsDefault = true });
             SelectedDevice = Devices[0];
-            RenderDevices.Add(new FuryDeviceInfo { id = "__auto", name = "Auto (detecta VB-Cable)", channels = 2, sampleRate = 48000, isDefault = 1 });
-            RenderDevices.Add(new FuryDeviceInfo { id = "__none", name = "Sem render (só monitor)", channels = 2, sampleRate = 48000, isDefault = 0 });
+            RenderDevices.Add(new DeviceItem { Id = "__auto", Name = "Auto (detecta VB-Cable)", Channels = 2, SampleRate = 48000, IsDefault = true });
+            RenderDevices.Add(new DeviceItem { Id = "__none", Name = "Sem render (só monitor)", Channels = 2, SampleRate = 48000, IsDefault = false });
             SelectedRenderDevice = RenderDevices[0];
             StatusText = "Core DLL não encontrada em output. Compile core/build/Release/FuryEqualizeCore.dll — modo local, sem auth";
             return;
@@ -87,12 +91,11 @@ public class MainViewModel : INotifyPropertyChanged
 
             if (count == 0)
             {
-                // Fallback: enumera via fallback mock + aviso, ao inves de deixar ComboBox vazio
                 StatusText = "Nenhum device WASAPI encontrado — usando fallback mock";
-                Devices.Add(new FuryDeviceInfo { id = "", name = "Default (WASAPI Shared) — fallback", channels = 2, sampleRate = 48000, isDefault = 1 });
+                Devices.Add(new DeviceItem { Id = "", Name = "Default (WASAPI Shared) — fallback", Channels = 2, SampleRate = 48000, IsDefault = true });
                 SelectedDevice = Devices[0];
-                RenderDevices.Add(new FuryDeviceInfo { id = "__auto", name = "Auto (detecta VB-Cable / Hi-Fi Cable)", channels = 2, sampleRate = 48000, isDefault = 1 });
-                RenderDevices.Add(new FuryDeviceInfo { id = "__none", name = "Sem render (so monitor)", channels = 2, sampleRate = 48000, isDefault = 0 });
+                RenderDevices.Add(new DeviceItem { Id = "__auto", Name = "Auto (detecta VB-Cable / Hi-Fi Cable)", Channels = 2, SampleRate = 48000, IsDefault = true });
+                RenderDevices.Add(new DeviceItem { Id = "__none", Name = "Sem render (so monitor)", Channels = 2, SampleRate = 48000, IsDefault = false });
                 SelectedRenderDevice = RenderDevices[0];
                 try { SelectedBuffer = AudioEngineInterop.AudioEngine_GetBuffer(); } catch { SelectedBuffer = 256; }
                 return;
@@ -100,17 +103,13 @@ public class MainViewModel : INotifyPropertyChanged
 
             var arr = new FuryDeviceInfo[Math.Min(count, 32)];
             AudioEngineInterop.AudioEngine_GetDevices(arr, arr.Length);
-            for (int i = 0; i < arr.Length; i++)
-            {
-                if (string.IsNullOrWhiteSpace(arr[i].name)) arr[i].name = arr[i].id;
-                Devices.Add(arr[i]);
-            }
-            var def = Devices.FirstOrDefault(d => d.isDefault == 1);
-            SelectedDevice = def.name != null ? def : Devices[0];
+            foreach (var f in arr) Devices.Add(Map(f));
+            var def = Devices.FirstOrDefault(d => d.IsDefault);
+            SelectedDevice = def ?? Devices[0];
 
-            RenderDevices.Add(new FuryDeviceInfo { id = "__auto", name = "Auto (detecta VB-Cable / Hi-Fi Cable)", channels = 2, sampleRate = 48000, isDefault = 1 });
-            foreach (var d in arr) RenderDevices.Add(d);
-            RenderDevices.Add(new FuryDeviceInfo { id = "__none", name = "Sem render (so monitor)", channels = 2, sampleRate = 48000, isDefault = 0 });
+            RenderDevices.Add(new DeviceItem { Id = "__auto", Name = "Auto (detecta VB-Cable / Hi-Fi Cable)", Channels = 2, SampleRate = 48000, IsDefault = true });
+            foreach (var f in arr) RenderDevices.Add(Map(f));
+            RenderDevices.Add(new DeviceItem { Id = "__none", Name = "Sem render (so monitor)", Channels = 2, SampleRate = 48000, IsDefault = false });
             SelectedRenderDevice = RenderDevices[0];
             AudioEngineInterop.AudioEngine_SetRenderDevice(null);
 
@@ -119,9 +118,9 @@ public class MainViewModel : INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            Devices.Add(new FuryDeviceInfo { id = "", name = $"Erro: {ex.Message}", channels = 2, sampleRate = 48000, isDefault = 1 });
+            Devices.Add(new DeviceItem { Id = "", Name = $"Erro: {ex.Message}", Channels = 2, SampleRate = 48000, IsDefault = true });
             SelectedDevice = Devices[0];
-            RenderDevices.Add(new FuryDeviceInfo { id = "__auto", name = "Auto (detecta VB-Cable)", channels = 2, sampleRate = 48000, isDefault = 1 });
+            RenderDevices.Add(new DeviceItem { Id = "__auto", Name = "Auto (detecta VB-Cable)", Channels = 2, SampleRate = 48000, IsDefault = true });
             SelectedRenderDevice = RenderDevices[0];
             StatusText = $"Erro ao listar devices: {ex.Message}";
         }
@@ -138,7 +137,7 @@ public class MainViewModel : INotifyPropertyChanged
         }
         else
         {
-            var id = SelectedDevice?.id;
+            var id = SelectedDevice?.Id;
             var rc = AudioEngineInterop.AudioEngine_Start(string.IsNullOrEmpty(id) ? null : id);
             IsRunning = rc == 0;
             StatusText = rc == 0 ? $"Engine rodando @ {SelectedBuffer} samples (~{SelectedBuffer/48.0:F1}ms @48kHz)" : $"Falha ao iniciar: {rc}";

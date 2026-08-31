@@ -84,12 +84,12 @@ std::string WasapiEngine::findVirtualCableDevice() {
         PROPVARIANT varName; PropVariantInit(&varName);
         pProps->GetValue(PKEY_Device_FriendlyName, &varName);
         char name[256]={0};
-        if(varName.pwszVal) WideCharToMultiByte(CP_UTF8,0,varName.pwszVal,-1,name,256,nullptr,nullptr);
+        if(varName.pwszVal) WideCharToMultiByte(CP_ACP,0,varName.pwszVal,-1,name,256,nullptr,nullptr);
         std::string n = name;
         std::string lower=n; std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
         if(lower.find("cable")!=std::string::npos || lower.find("vb-audio")!=std::string::npos || lower.find("hi-fi")!=std::string::npos || lower.find("hifi")!=std::string::npos){
             LPWSTR id=nullptr; pDev->GetId(&id);
-            char id8[256]={0}; WideCharToMultiByte(CP_UTF8,0,id,-1,id8,256,nullptr,nullptr);
+            char id8[256]={0}; WideCharToMultiByte(CP_ACP,0,id,-1,id8,256,nullptr,nullptr);
             found = id8;
             CoTaskMemFree(id);
             PropVariantClear(&varName); pProps->Release(); pDev->Release();
@@ -121,8 +121,8 @@ int WasapiEngine::enumerateDevices(::FuryDeviceInfo* out, int maxCount) {
         IPropertyStore* pProps=nullptr; pDev->OpenPropertyStore(STGM_READ, &pProps);
         PROPVARIANT varName; PropVariantInit(&varName);
         pProps->GetValue(PKEY_Device_FriendlyName, &varName);
-        WideCharToMultiByte(CP_UTF8,0,id,-1,out[i].id,256,nullptr,nullptr);
-        WideCharToMultiByte(CP_UTF8,0,varName.pwszVal,-1,out[i].name,256,nullptr,nullptr);
+        WideCharToMultiByte(CP_ACP,0,id,-1,out[i].id,256,nullptr,nullptr);
+        WideCharToMultiByte(CP_ACP,0,varName.pwszVal,-1,out[i].name,256,nullptr,nullptr);
         out[i].channels = 2;
         out[i].sampleRate = 48000;
         out[i].isDefault = (defaultId && wcscmp(id, defaultId)==0) ? 1 : 0;
