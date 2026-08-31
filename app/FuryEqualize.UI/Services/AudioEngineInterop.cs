@@ -37,6 +37,12 @@ internal static class AudioEngineInterop
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern int AudioEngine_GetBuffer();
 
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    public static extern int AudioEngine_SetRenderDevice(string? renderDeviceId);
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
+    public static extern int AudioEngine_GetRenderDevice(byte[] outId, int maxLen);
+
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern int AudioEngine_GetDevices([Out] FuryDeviceInfo[] outDevices, int maxCount);
 

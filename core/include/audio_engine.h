@@ -38,6 +38,9 @@ FURY_API int32_t AudioEngine_SetEq(float lowShelfGainDb, float peakGainDb, float
 // Buffer: 128, 256, 512, 1024
 FURY_API int32_t AudioEngine_SetBuffer(int32_t bufferSize);
 FURY_API int32_t AudioEngine_GetBuffer();
+// Render virtual cable: nullptr = auto-detect VB-Cable/Hi-Fi Cable, "none" = desativa render
+FURY_API int32_t AudioEngine_SetRenderDevice(const char* renderDeviceId);
+FURY_API int32_t AudioEngine_GetRenderDevice(char* outId, int32_t maxLen);
 
 // --- Devices ---
 typedef struct {

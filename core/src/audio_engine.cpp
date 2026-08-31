@@ -2,6 +2,7 @@
 #include "audio_engine.h"
 #include "wasapi/wasapi_engine.h"
 #include <string>
+#include <cstring>
 
 int32_t AudioEngine_Start(const char* deviceId) {
     std::string id = deviceId ? deviceId : "";
@@ -25,6 +26,18 @@ int32_t AudioEngine_SetBuffer(int32_t size) {
     return FURY_OK;
 }
 int32_t AudioEngine_GetBuffer() { return fury::wasapi::globalEngine().getBufferSize(); }
+
+int32_t AudioEngine_SetRenderDevice(const char* renderDeviceId) {
+    std::string id = renderDeviceId ? renderDeviceId : "";
+    fury::wasapi::globalEngine().setRenderDevice(id);
+    return FURY_OK;
+}
+int32_t AudioEngine_GetRenderDevice(char* outId, int32_t maxLen) {
+    if(!outId || maxLen<=0) return FURY_ERR_INVALID_PARAM;
+    auto s = fury::wasapi::globalEngine().getRenderDevice();
+    strncpy_s(outId, maxLen, s.c_str(), _TRUNCATE);
+    return (int32_t)s.size();
+}
 
 int32_t AudioEngine_GetDevices(FuryDeviceInfo* out, int32_t maxCount) {
     if(!out || maxCount<=0) return fury::wasapi::globalEngine().enumerateDevices(nullptr,0);

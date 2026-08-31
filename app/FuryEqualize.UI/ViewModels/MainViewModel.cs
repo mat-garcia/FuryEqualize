@@ -16,6 +16,21 @@ public class MainViewModel : INotifyPropertyChanged
     private FuryDeviceInfo? _selectedDevice;
     public FuryDeviceInfo? SelectedDevice { get => _selectedDevice; set { _selectedDevice = value; OnPropertyChanged(); } }
 
+    // Render virtual cable (VB-Cable): auto-detect por padrão
+    public ObservableCollection<FuryDeviceInfo> RenderDevices { get; } = new();
+    private FuryDeviceInfo? _selectedRenderDevice;
+    public FuryDeviceInfo? SelectedRenderDevice {
+        get => _selectedRenderDevice;
+        set { _selectedRenderDevice = value; OnPropertyChanged(); OnPropertyChanged(nameof(RenderDeviceLabel));
+              if (AudioEngineInterop.IsAvailable && value != null) {
+                  // "auto" = deixa engine auto-detectar; senão usa id explícito
+                  var id = value.Value.id == "__auto" ? null : value.Value.id == "__none" ? "none" : value.Value.id;
+                  AudioEngineInterop.AudioEngine_SetRenderDevice(id);
+              }
+        }
+    }
+    public string RenderDeviceLabel => SelectedRenderDevice?.name ?? "Auto (VB-Cable)";
+
     private Preset _selectedPreset = PresetService.Presets[0];
     public Preset SelectedPreset { get => _selectedPreset; set { _selectedPreset = value; OnPropertyChanged(); PresetService.Apply(value); StatusText = $"Preset: {value.Name}"; } }
 
@@ -53,11 +68,15 @@ public class MainViewModel : INotifyPropertyChanged
     public void RefreshDevices()
     {
         Devices.Clear();
+        RenderDevices.Clear();
         if (!AudioEngineInterop.IsAvailable)
         {
             Devices.Add(new FuryDeviceInfo { id = "", name = "⚠ DLL não encontrada — modo mock", channels = 2, sampleRate = 48000, isDefault = 1 });
             SelectedDevice = Devices[0];
-            StatusText = "Core DLL não encontrada em output. Compile core/build/Release/FuryEqualizeCore.dll";
+            RenderDevices.Add(new FuryDeviceInfo { id = "__auto", name = "Auto (detecta VB-Cable)", channels = 2, sampleRate = 48000, isDefault = 1 });
+            RenderDevices.Add(new FuryDeviceInfo { id = "__none", name = "Sem render (só monitor)", channels = 2, sampleRate = 48000, isDefault = 0 });
+            SelectedRenderDevice = RenderDevices[0];
+            StatusText = "Core DLL não encontrada em output. Compile core/build/Release/FuryEqualizeCore.dll — modo local, sem auth";
             return;
         }
         int count = AudioEngineInterop.AudioEngine_GetDevices(null!, 0);
@@ -67,8 +86,17 @@ public class MainViewModel : INotifyPropertyChanged
         foreach (var d in arr) Devices.Add(d);
         var def = Devices.FirstOrDefault(d => d.isDefault == 1);
         SelectedDevice = def.name != null ? def : Devices[0];
+
+        // Render devices = mesmos devices + opções especiais
+        RenderDevices.Add(new FuryDeviceInfo { id = "__auto", name = "Auto (detecta VB-Cable / Hi-Fi Cable)", channels = 2, sampleRate = 48000, isDefault = 1 });
+        foreach (var d in arr) RenderDevices.Add(d);
+        RenderDevices.Add(new FuryDeviceInfo { id = "__none", name = "Sem render (só monitor)", channels = 2, sampleRate = 48000, isDefault = 0 });
+        SelectedRenderDevice = RenderDevices[0];
+        // Aplica auto por padrão
+        AudioEngineInterop.AudioEngine_SetRenderDevice(null);
+
         SelectedBuffer = AudioEngineInterop.AudioEngine_GetBuffer();
-        StatusText = $"{count} device(s) encontrado(s)";
+        StatusText = $"{count} device(s) encontrado(s) — modo local, sem auth";
     }
 
     public void ToggleEngine()
