@@ -105,6 +105,8 @@ internal static class AudioEngineInterop
     public static extern int AudioEngine_SetSniperPreset(ref SniperPresetParams p);
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Ansi)]
     public static extern int AudioEngine_LoadSniperPresetJson(string path);
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int AudioEngine_SetChannelGain(int channel, float linearGain);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern int AudioEngine_GetDevices([Out] FuryDeviceInfo[] outDevices, int maxCount);

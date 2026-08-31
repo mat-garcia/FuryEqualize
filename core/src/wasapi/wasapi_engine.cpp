@@ -214,42 +214,63 @@ void WasapiEngine::processBuffer(float* data, UINT32 frames, int channels, doubl
         // Para manter simples, só aplica makeup sem compressão dinâmica em mono
         gainReductionDb_.store(0);
     } else {
-        // 3..8 canais (5.1/7.1): processa cada canal com sua instância
-        int ch = std::min<int>(channels, 8);
-        for(UINT32 f=0; f<frames; f++){
-            for(int c=0;c<ch;c++){
-                float s = data[f*channels + c];
-                s = mcLow_[c].process(s);
-                s = mcPeak_[c].process(s);
-                s = mcHigh_[c].process(s);
-                data[f*channels + c] = s;
+        // Sauda 7.1 (8ch) e 5.1: downmix para estéreo com ganhos Sauda + processa estéreo
+        // Se for 7.1 (8ch) vindo do VB-Cable Sauda, faz fold correto para fone estéreo
+        if(channels==8){
+            float stereo[2048];
+            if(frames>1024) frames=1024;
+            for(UINT32 i=0;i<frames;i++){
+                float fl = data[i*8+0];
+                float fr = data[i*8+1];
+                float fc = data[i*8+2];
+                float lfe= data[i*8+3]*0.5f;
+                float bl = data[i*8+4];
+                float br = data[i*8+5];
+                float sl = data[i*8+6];
+                float sr = data[i*8+7];
+                float l = fl + fc*0.707f + bl*0.707f + sl*0.707f + lfe;
+                float r = fr + fc*0.707f + br*0.707f + sr*0.707f + lfe;
+                stereo[i*2]=l; stereo[i*2+1]=r;
+            }
+            // Processa estéreo downmixado com chain principal
+            lowShelf_.process(stereo, frames);
+            peak_.process(stereo, frames);
+            highShelf_.process(stereo, frames);
+            compL_.process(stereo, frames);
+            gainReductionDb_.store(compL_.gainReductionDb());
+            // Copia de volta como estéreo compactado (2*frames) no início do buffer
+            for(UINT32 i=0;i<frames*2;i++) data[i]=stereo[i];
+            // Marca que agora é estéreo para master (caller deve tratar como 2ch)
+            // Para manter compatível, não altera channels param, mas master abaixo trata 2*frames
+        } else {
+            int ch = std::min<int>(channels, 8);
+            for(UINT32 f=0; f<frames; f++){
+                for(int c=0;c<ch;c++){
+                    float s = data[f*channels + c];
+                    s = mcLow_[c].process(s);
+                    s = mcPeak_[c].process(s);
+                    s = mcHigh_[c].process(s);
+                    data[f*channels + c] = s;
+                }
+            }
+            float maxAbs = 0;
+            for(UINT32 i=0;i<frames* (UINT32)channels;i++) maxAbs = std::max(maxAbs, std::abs(data[i]));
+            float dummy[2] = {maxAbs, maxAbs};
+            float dummyBuf[2] = {dummy[0], dummy[1]};
+            compL_.process(dummyBuf, 1);
+            float gr = compL_.gainReductionDb();
+            gainReductionDb_.store(gr);
+            float lin = std::pow(10.0f, gr/20.0f) * std::pow(10.0f, compParams_.makeupDb/20.0f);
+            if(ch != 2){
+                for(UINT32 i=0;i<frames* (UINT32)channels;i++) data[i] *= lin;
             }
         }
-        // Compressor linked: calcula pico entre todos os canais e aplica mesmo ganho
-        // Reusa compL_ mas precisa de buffer interleaved 2ch; criamos ganho manual via envelope
-        // Simplificação: aplica compressor por canal com mesmo threshold (compartilha envelope)
-        // Para manter link, usamos compL_ para calcular GR e aplicamos a todos
-        // Extrai envelope do compL_ após processar um frame estéreo dummy com pico
-        // Método: usa compL_ para processar par de canais 0/1, pega GR e aplica aos demais
-        // Fallback simples: se ainda não temos GR, calcula via compL_.process em buffer temporário 2ch
-        float maxAbs = 0;
-        for(UINT32 i=0;i<frames* (UINT32)channels;i++) maxAbs = std::max(maxAbs, std::abs(data[i]));
-        // Usa compressor para obter GR (processa dummy)
-        float dummy[2] = {maxAbs, maxAbs};
-        float dummyBuf[2] = {dummy[0], dummy[1]};
-        compL_.process(dummyBuf, 1);
-        float gr = compL_.gainReductionDb();
-        gainReductionDb_.store(gr);
-        float lin = std::pow(10.0f, gr/20.0f) * std::pow(10.0f, compParams_.makeupDb/20.0f);
-        if(ch != 2){
-            for(UINT32 i=0;i<frames* (UINT32)channels;i++) data[i] *= lin;
-        }
     }
-    // Master volume (Sniper preset)
+    // Master volume (Sniper preset) — para Sauda 7.1 downmix, aplica só nos 2*frames válidos
+    int effectiveCh = (channels==8) ? 2 : (int)channels;
     if(masterLinear_ != 1.0f){
-        for(UINT32 i=0;i<frames*(UINT32)channels;i++) data[i] *= masterLinear_;
-        // clamp
-        for(UINT32 i=0;i<frames*(UINT32)channels;i++) data[i] = std::clamp(data[i], -1.0f, 1.0f);
+        for(UINT32 i=0;i<frames*(UINT32)effectiveCh;i++) data[i] *= masterLinear_;
+        for(UINT32 i=0;i<frames*(UINT32)effectiveCh;i++) data[i] = std::clamp(data[i], -1.0f, 1.0f);
     }
 }
 
@@ -361,8 +382,10 @@ void WasapiEngine::audioThreadProc(std::string captureDeviceId) {
 
                     if(isFloatCap || (!isPcm16Cap && pwfxCapture->wBitsPerSample==32)){
                         fData = reinterpret_cast<float*>(pData);
-                        // processa in-place
+                        // processa in-place (para Sauda 7.1 downmix para estéreo dentro)
                         processBuffer(fData, numFrames, channelsCap, sampleRateCap);
+                        int outCh = (channelsCap==8) ? 2 : (int)channelsCap;
+                        size_t outSamples = (size_t)numFrames * outCh;
 
                         // Envia para render se ativo
                         if(useRender && pRender){
@@ -377,9 +400,9 @@ void WasapiEngine::audioThreadProc(std::string captureDeviceId) {
                                     if(rIsFloat || pwfxRender->wBitsPerSample==32){
                                         memcpy(pOut, fData, numFrames * pwfxRender->nBlockAlign);
                                     } else if(pwfxRender->wBitsPerSample==16){
-                                        floatToPcm16(fData, reinterpret_cast<int16_t*>(pOut), totalSamples);
+                                        floatToPcm16(fData, reinterpret_cast<int16_t*>(pOut), outSamples);
                                     } else {
-                                        memcpy(pOut, fData, std::min<size_t>(numFrames * pwfxRender->nBlockAlign, numFrames * channelsCap * sizeof(float)));
+                                        memcpy(pOut, fData, std::min<size_t>(numFrames * pwfxRender->nBlockAlign, outSamples * sizeof(float)));
                                     }
                                     pRender->ReleaseBuffer(numFrames, 0);
                                 }
@@ -389,12 +412,11 @@ void WasapiEngine::audioThreadProc(std::string captureDeviceId) {
                         }
 
                     } else if(isPcm16Cap){
-                        // Converte PCM16 -> float, processa, converte de volta para render
-                        floatBuf.resize(totalSamples);
+                        if(floatBuf.size() < totalSamples) floatBuf.resize(totalSamples);
                         pcm16ToFloat(reinterpret_cast<int16_t*>(pData), floatBuf.data(), totalSamples);
                         processBuffer(floatBuf.data(), numFrames, channelsCap, sampleRateCap);
-                        // Para loopback puro sem render, precisaríamos reescrever pData — mas loopback é só leitura
-                        // Então apenas encaminha para render se houver
+                        int outCh = (channelsCap==8) ? 2 : (int)channelsCap;
+                        size_t outSamples = (size_t)numFrames * outCh;
                         if(useRender && pRender){
                             UINT32 pad=0; pRenderClient->GetCurrentPadding(&pad);
                             UINT32 avail = renderBufferFrames > pad ? renderBufferFrames - pad : 0;
@@ -405,9 +427,9 @@ void WasapiEngine::audioThreadProc(std::string captureDeviceId) {
                                         ? ((WAVEFORMATEXTENSIBLE*)pwfxRender)->SubFormat==KSDATAFORMAT_SUBTYPE_IEEE_FLOAT
                                         : pwfxRender->wFormatTag==WAVE_FORMAT_IEEE_FLOAT;
                                     if(rIsFloat){
-                                        memcpy(pOut, floatBuf.data(), totalSamples*sizeof(float));
+                                        memcpy(pOut, floatBuf.data(), outSamples*sizeof(float));
                                     } else {
-                                        floatToPcm16(floatBuf.data(), reinterpret_cast<int16_t*>(pOut), totalSamples);
+                                        floatToPcm16(floatBuf.data(), reinterpret_cast<int16_t*>(pOut), outSamples);
                                     }
                                     pRender->ReleaseBuffer(numFrames, 0);
                                 }

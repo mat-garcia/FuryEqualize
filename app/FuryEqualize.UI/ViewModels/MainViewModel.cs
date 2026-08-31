@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows.Input;
 using System.Windows.Threading;
 using FuryEqualize.UI.Services;
 
@@ -60,8 +61,28 @@ public class MainViewModel : INotifyPropertyChanged
     public float MasterVolumeDb { get => _masterVolumeDb; set { _masterVolumeDb = Math.Clamp(value, -24, 24); OnPropertyChanged(); OnPropertyChanged(nameof(MasterVolumePercent)); if(AudioEngineInterop.IsAvailable) AudioEngineInterop.AudioEngine_SetMasterVolume(_masterVolumeDb); } }
     public int MasterVolumePercent => (int)(Math.Pow(10, MasterVolumeDb/20)*100);
 
+    // 7.1 Mixer (Sauda)
+    public ObservableCollection<ChannelViewModel> Channels71 { get; } = new();
+    private float _lfeGainDb = 0f;
+    public float LfeGainDb { get => _lfeGainDb; set { _lfeGainDb = Math.Clamp(value, -24, 12); OnPropertyChanged(); if(AudioEngineInterop.IsAvailable) AudioEngineInterop.AudioEngine_SetChannelGain(3, (float)Math.Pow(10, value/20)); } }
+
+    public ICommand ResetChannels71Command { get; }
+
     public MainViewModel()
     {
+        ResetChannels71Command = new RelayCommand(() => {
+            foreach(var c in Channels71) c.GainLinear = 1.0f;
+            LfeGainDb = 0;
+            if(AudioEngineInterop.IsAvailable){
+                for(int i=0;i<8;i++) AudioEngineInterop.AudioEngine_SetChannelGain(i, 1.0f);
+                AudioEngineInterop.AudioEngine_SetChannelGain(3, 1.0f);
+            }
+            StatusText = "7.1 Mixer resetado";
+        });
+        // 7.1 Mixer init (Sauda order: FL, FR, FC, LFE, BL, BR, SL, SR)
+        var chNames = new[] { ("FL","FL"), ("FR","FR"), ("FC","FC"), ("LFE","LFE"), ("BL","BL"), ("BR","BR"), ("SL","SL"), ("SR","SR") };
+        for(int i=0;i<8;i++) Channels71.Add(new ChannelViewModel(i, chNames[i].Item1, chNames[i].Item2));
+        
         RefreshDevices();
         _meterTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(80) };
         _meterTimer.Tick += (_, _) =>
