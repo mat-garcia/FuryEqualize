@@ -79,24 +79,52 @@ public class MainViewModel : INotifyPropertyChanged
             StatusText = "Core DLL não encontrada em output. Compile core/build/Release/FuryEqualizeCore.dll — modo local, sem auth";
             return;
         }
-        int count = AudioEngineInterop.AudioEngine_GetDevices(null!, 0);
-        if (count == 0) { StatusText = "Nenhum device encontrado"; return; }
-        var arr = new FuryDeviceInfo[Math.Min(count, 32)];
-        AudioEngineInterop.AudioEngine_GetDevices(arr, arr.Length);
-        foreach (var d in arr) Devices.Add(d);
-        var def = Devices.FirstOrDefault(d => d.isDefault == 1);
-        SelectedDevice = def.name != null ? def : Devices[0];
+        try
+        {
+            int count = 0;
+            try { count = AudioEngineInterop.AudioEngine_GetDevices(null!, 0); }
+            catch (Exception ex) { StatusText = $"Falha ao enumerar devices: {ex.Message}"; count = 0; }
 
-        // Render devices = mesmos devices + opções especiais
-        RenderDevices.Add(new FuryDeviceInfo { id = "__auto", name = "Auto (detecta VB-Cable / Hi-Fi Cable)", channels = 2, sampleRate = 48000, isDefault = 1 });
-        foreach (var d in arr) RenderDevices.Add(d);
-        RenderDevices.Add(new FuryDeviceInfo { id = "__none", name = "Sem render (só monitor)", channels = 2, sampleRate = 48000, isDefault = 0 });
-        SelectedRenderDevice = RenderDevices[0];
-        // Aplica auto por padrão
-        AudioEngineInterop.AudioEngine_SetRenderDevice(null);
+            if (count == 0)
+            {
+                // Fallback: enumera via fallback mock + aviso, ao inves de deixar ComboBox vazio
+                StatusText = "Nenhum device WASAPI encontrado — usando fallback mock";
+                Devices.Add(new FuryDeviceInfo { id = "", name = "Default (WASAPI Shared) — fallback", channels = 2, sampleRate = 48000, isDefault = 1 });
+                SelectedDevice = Devices[0];
+                RenderDevices.Add(new FuryDeviceInfo { id = "__auto", name = "Auto (detecta VB-Cable / Hi-Fi Cable)", channels = 2, sampleRate = 48000, isDefault = 1 });
+                RenderDevices.Add(new FuryDeviceInfo { id = "__none", name = "Sem render (so monitor)", channels = 2, sampleRate = 48000, isDefault = 0 });
+                SelectedRenderDevice = RenderDevices[0];
+                try { SelectedBuffer = AudioEngineInterop.AudioEngine_GetBuffer(); } catch { SelectedBuffer = 256; }
+                return;
+            }
 
-        SelectedBuffer = AudioEngineInterop.AudioEngine_GetBuffer();
-        StatusText = $"{count} device(s) encontrado(s) — modo local, sem auth";
+            var arr = new FuryDeviceInfo[Math.Min(count, 32)];
+            AudioEngineInterop.AudioEngine_GetDevices(arr, arr.Length);
+            for (int i = 0; i < arr.Length; i++)
+            {
+                if (string.IsNullOrWhiteSpace(arr[i].name)) arr[i].name = arr[i].id;
+                Devices.Add(arr[i]);
+            }
+            var def = Devices.FirstOrDefault(d => d.isDefault == 1);
+            SelectedDevice = def.name != null ? def : Devices[0];
+
+            RenderDevices.Add(new FuryDeviceInfo { id = "__auto", name = "Auto (detecta VB-Cable / Hi-Fi Cable)", channels = 2, sampleRate = 48000, isDefault = 1 });
+            foreach (var d in arr) RenderDevices.Add(d);
+            RenderDevices.Add(new FuryDeviceInfo { id = "__none", name = "Sem render (so monitor)", channels = 2, sampleRate = 48000, isDefault = 0 });
+            SelectedRenderDevice = RenderDevices[0];
+            AudioEngineInterop.AudioEngine_SetRenderDevice(null);
+
+            SelectedBuffer = AudioEngineInterop.AudioEngine_GetBuffer();
+            StatusText = $"{count} device(s) encontrado(s) — modo local, sem auth";
+        }
+        catch (Exception ex)
+        {
+            Devices.Add(new FuryDeviceInfo { id = "", name = $"Erro: {ex.Message}", channels = 2, sampleRate = 48000, isDefault = 1 });
+            SelectedDevice = Devices[0];
+            RenderDevices.Add(new FuryDeviceInfo { id = "__auto", name = "Auto (detecta VB-Cable)", channels = 2, sampleRate = 48000, isDefault = 1 });
+            SelectedRenderDevice = RenderDevices[0];
+            StatusText = $"Erro ao listar devices: {ex.Message}";
+        }
     }
 
     public void ToggleEngine()
