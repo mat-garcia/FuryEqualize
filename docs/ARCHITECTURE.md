@@ -17,10 +17,13 @@ Jogo -> Windows Mix (WASAPI Shared) -> Loopback Capture (FuryEqualizeCore.dll)
 - Hotkeys globais `Ctrl+Alt+F1/F2/F3` via `RegisterHotKey` (user32).
 - Telemetria: polling 80ms de `GetInputLevelDb` / `GetGainReductionDb`.
 
-## Backend
-- Ver `backend/openapi.yaml`. Presets nunca em texto plano no disco; coeficientes vêm assinados (HMAC) e são injetados direto na DLL em memória.
+## Modo local (sem backend)
+- Presets locais em `Services/PresetService.cs:9` — sem JWT/OAuth. `backend/openapi.yaml` e `LicenseService.cs` mantidos só como referência (Obsolete).
+- `Services/PresetCrypto.cs` desabilitado em modo local.
 
-## Próximos passos técnicos
-- Fase 1.5: adicionar `IAudioRenderClient` para VB-Cable (hoje só captura/monitora).
-- Resampling se mix != 48kHz.
-- Assinatura HMAC no client antes de aplicar preset remoto.
+## Estado atual (Fase 1.5 concluída)
+- `wasapi_engine.cpp:150` já tem dual-client `IAudioCaptureClient` + `IAudioRenderClient` para VB-Cable (auto-detect), conversão PCM16/float e 7.1 multicanal.
+
+## Próximos passos
+- Resampler quando captura e render têm sampleRate diferentes (placeholder atual apenas loga drift).
+- Testes de latência in-game e instalador com VB-Cable empacotado.

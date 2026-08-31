@@ -4,8 +4,12 @@ using System.Net.Http.Json;
 
 namespace FuryEqualize.UI.Services;
 
+// DEPRECATED: modo local sem comercializacao — mantido só como referência
+// Presets são locais em PresetService.cs, sem JWT/OAuth
+[Obsolete("Modo local: nao usado. Ver PresetService para presets offline.")]
 public record LicenseStatus(bool IsActive, string Plan, DateTime? ExpiresAt, string Message);
 
+[Obsolete("Modo local: nao usado.")]
 public class LicenseService
 {
     private readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(8) };

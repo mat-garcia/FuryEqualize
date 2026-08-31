@@ -34,7 +34,7 @@ Name: "autostart"; Description: "Iniciar com o Windows (System Tray)"; GroupDesc
 
 [Files]
 Source: "{#SrcApp}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#SrcCore}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SrcCore}"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\app\FuryEqualize.UI\bin\Release\net8.0-windows\*.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\app\FuryEqualize.UI\bin\Release\net8.0-windows\*.json"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 ; VC++ Redist (incluir vcredist_x64.exe ao lado do .iss se distribuir offline)
