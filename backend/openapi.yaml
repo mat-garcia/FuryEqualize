@@ -1,0 +1,103 @@
+openapi: 3.0.3
+info:
+  title: FuryEqualize API
+  version: 0.1.0
+  description: Backend para auth Discord, licenciamento e distribuição segura de presets
+servers:
+  - url: https://api.furyequalize.local
+paths:
+  /auth/discord/redirect:
+    get:
+      summary: Inicia OAuth2 Discord
+      responses: { '302': { description: Redirect para Discord } }
+  /auth/discord/callback:
+    get:
+      summary: Callback Discord -> retorna JWT
+      parameters:
+        - { name: code, in: query, required: true, schema: { type: string } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  user: { $ref: '#/components/schemas/User' }
+  /v1/license/status:
+    get:
+      security: [{ bearerAuth: [] }]
+      summary: Status da licença
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LicenseStatus' }
+  /v1/presets:
+    get:
+      security: [{ bearerAuth: [] }]
+      summary: Lista presets (coeficientes assinados, injetados na DLL, não salvos em texto plano)
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Preset' }
+  /v1/presets/{id}/coefficients:
+    get:
+      security: [{ bearerAuth: [] }]
+      summary: Coeficientes biquad + compressor assinados (HMAC)
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PresetCoefficients' }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        discordId: { type: string }
+        username: { type: string }
+    LicenseStatus:
+      type: object
+      properties:
+        isActive: { type: boolean }
+        plan: { type: string, enum: [free, pro, lifetime] }
+        expiresAt: { type: string, format: date-time, nullable: true }
+        message: { type: string }
+    Preset:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+    PresetCoefficients:
+      type: object
+      properties:
+        presetId: { type: string }
+        # Coeficientes já calculados (b0,b1,b2,a1,a2) para evitar reverse engineering do DSP no client
+        biquads:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { type: string, enum: [lowShelf, peak, highShelf] }
+              b0: { type: number } ; b1: { type: number } ; b2: { type: number } ; a1: { type: number } ; a2: { type: number }
+        compressor: { $ref: '#/components/schemas/CompressorParams' }
+        signature: { type: string, description: HMAC-SHA256 dos coeficientes }
+        expiresAt: { type: string, format: date-time }
+    CompressorParams:
+      type: object
+      properties:
+        thresholdDb: { type: number }
+        ratio: { type: number }
+        attackMs: { type: number }
+        releaseMs: { type: number }
+        makeupDb: { type: number }
+        kneeDb: { type: number }

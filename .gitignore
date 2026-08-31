@@ -1,0 +1,36 @@
+# C++ build
+core/build/
+core/out/
+core/.vs/
+*.dll
+*.lib
+*.exp
+*.pdb
+*.obj
+*.o
+
+# .NET / WPF
+app/**/bin/
+app/**/obj/
+app/.vs/
+*.user
+*.suo
+
+# Tauri / Node (se migrar)
+node_modules/
+dist/
+
+# Installer output
+installer/Output/
+installer/*.exe
+
+# Env / secrets
+.env
+appsettings.local.json
+*.pfx
+*.key
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store

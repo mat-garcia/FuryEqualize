@@ -1,0 +1,34 @@
+#define FURYCORE_EXPORTS
+#include "audio_engine.h"
+#include "wasapi/wasapi_engine.h"
+#include <string>
+
+int32_t AudioEngine_Start(const char* deviceId) {
+    std::string id = deviceId ? deviceId : "";
+    return fury::wasapi::globalEngine().start(id);
+}
+int32_t AudioEngine_Stop() { return fury::wasapi::globalEngine().stop(); }
+int32_t AudioEngine_IsRunning() { return fury::wasapi::globalEngine().isRunning() ? 1 : 0; }
+
+int32_t AudioEngine_SetPreset(float thr, float ratio, float attack, float release, float makeup) {
+    if(ratio < 1 || ratio > 20) return FURY_ERR_INVALID_PARAM;
+    fury::wasapi::globalEngine().setPreset(thr, ratio, attack, release, makeup);
+    return FURY_OK;
+}
+int32_t AudioEngine_SetEq(float low, float peak, float high) {
+    fury::wasapi::globalEngine().setEq(low, peak, high);
+    return FURY_OK;
+}
+int32_t AudioEngine_SetBuffer(int32_t size) {
+    if(size!=128 && size!=256 && size!=512 && size!=1024) return FURY_ERR_INVALID_PARAM;
+    fury::wasapi::globalEngine().setBufferSize(size);
+    return FURY_OK;
+}
+int32_t AudioEngine_GetBuffer() { return fury::wasapi::globalEngine().getBufferSize(); }
+
+int32_t AudioEngine_GetDevices(FuryDeviceInfo* out, int32_t maxCount) {
+    if(!out || maxCount<=0) return fury::wasapi::globalEngine().enumerateDevices(nullptr,0);
+    return fury::wasapi::globalEngine().enumerateDevices(out, maxCount);
+}
+float AudioEngine_GetInputLevelDb() { return fury::wasapi::globalEngine().inputLevelDb(); }
+float AudioEngine_GetGainReductionDb() { return fury::wasapi::globalEngine().gainReductionDb(); }
