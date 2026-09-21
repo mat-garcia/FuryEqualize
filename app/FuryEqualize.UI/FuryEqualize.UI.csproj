@@ -22,6 +22,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Resource Include="Assets\App.ico" />
+    <Resource Include="Assets\furyeq.png" />
     <!-- Copia DLL nativa para output -->
     <None Include="..\..\core\build\Release\FuryEqualizeCore.dll" Link="FuryEqualizeCore.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\core\build\Release\FuryEqualizeCore.dll')" />
     <!-- Presets JSON (local AppData ou API) -->

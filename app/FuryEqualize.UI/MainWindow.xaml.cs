@@ -78,6 +78,10 @@ public partial class MainWindow : Window
 
     private void OnToggleEngine(object sender, RoutedEventArgs e) => _vm.ToggleEngine();
     private void OnRefresh(object sender, RoutedEventArgs e) => _vm.RefreshDevices();
+    private void OnMinimizeClick(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+    private void OnMaximizeRestoreClick(object sender, RoutedEventArgs e) =>
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+    private void OnCloseButtonClick(object sender, RoutedEventArgs e) => Close();
 
     private void OnStateChanged(object? sender, EventArgs e)
     {
