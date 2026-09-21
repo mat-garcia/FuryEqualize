@@ -50,7 +50,10 @@ dotnet run --project app/FuryEqualize.UI/FuryEqualize.UI.csproj
 4. **PRESET** → escolha `Competitive` / `Quiet Gunshots` / `Flat` (ou ajuste na seção "Parâmetros Reais").
 5. Clique **Iniciar**.
 
-### 2.6 Gerar o .exe único (portátil, sem instalar nada)
+### 2.6 Download / gerar o .exe único (portátil, sem instalar nada)
+**Usuário final**: o download oficial é o **FuryEqualize.exe** na release do GitHub:
+**[⬇️ Clique aqui](https://github.com/mat-garcia/FuryEqualize/releases/tag/V1.00-beta)** (ZIP com o exe → extrair → duplo clique).
+
 O `FuryEqualize.UI.csproj` já vem configurado (Release) para publicar tudo num só arquivo:
 - `SelfContained` + .NET 8 embutido → **não precisa instalar .NET**;
 - `IncludeNativeLibrariesForSelfExtract` + `IncludeAllContentForSelfExtract` → o `FuryEqualizeCore.dll` (engine C++) e os presets vão DENTRO do exe e são extraídos pro temp na primeira execução;
@@ -60,7 +63,7 @@ Comando:
 ```bat
 dotnet publish app/FuryEqualize.UI/FuryEqualize.UI.csproj -c Release -o publish/dist
 ```
-Resultado: **`publish/dist/FuryEqualize.exe`** (~155 MB). Copie só esse arquivo pra qualquer máquina Windows x64 → duplo clique → pronto.
+Resultado local: **`publish/dist/FuryEqualize.exe`** (~155 MB). Copie só esse arquivo pra qualquer máquina Windows x64 → duplo clique → pronto.
 
 > Se quiser o exe menor, remova `IncludeAllContentForSelfExtract` do csproj — aí a DLL e os presets ficam fora do exe (na mesma pasta).
 

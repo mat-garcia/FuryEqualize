@@ -15,7 +15,11 @@ Desktop app estilo Rara Audio para equalização/compressão em tempo real.
 
 ### 1. Pegar só o exe
 
-Baixe apenas o `FuryEqualize.exe` (saída em `publish/dist/`). Ele **já embute o .NET 8 e a engine C++** — não precisa instalar SDK, runtime ou dependência nenhuma.
+Baixe o **FuryEqualize.exe** na release oficial (ZIP com o exe):
+
+**[⬇️ Clique aqui](https://github.com/mat-garcia/FuryEqualize/releases/tag/V1.00-beta)**
+
+Ele **já embute o .NET 8 e a engine C++** — não precisa instalar SDK, runtime ou dependência nenhuma.
 
 ### 2. Instalar o VB-Cable
 
