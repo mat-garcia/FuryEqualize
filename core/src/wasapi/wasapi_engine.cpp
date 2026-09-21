@@ -24,6 +24,7 @@ WasapiEngine::WasapiEngine() {
     compR_.configure(compParams_, 48000);
     updateEqCoeffs(48000);
     masterVolumeDb_=0; masterLinear_=1.0f;
+    lfeGainDb_ = 0;
     sniperPreset_=g_activeSniperPreset;
 }
 
@@ -44,6 +45,17 @@ void WasapiEngine::setEq(float low, float peak, float high) {
     updateEqCoeffs(48000);
 }
 void WasapiEngine::setMasterVolume(float db){ masterVolumeDb_=db; masterLinear_=std::pow(10.0f, db/20.0f); }
+void WasapiEngine::setChannelGain(int channel, float linearGain){
+    if(channel < 0 || channel > 7) return;
+    if(linearGain < 0 || linearGain > 2) return;
+    if(channel == 3){
+        lfeGainDb_ = linearGain;
+    } else if(channel < 4){
+        chGainL_[channel] = linearGain;
+    } else {
+        chGainR_[channel - 4] = linearGain;
+    }
+}
 void WasapiEngine::setSniperPreset(const SniperPresetParams& p){
     sniperPreset_=p;
     g_activeSniperPreset=p;

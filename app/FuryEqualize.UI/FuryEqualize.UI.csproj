@@ -9,8 +9,19 @@
     <AssemblyName>FuryEqualize</AssemblyName>
     <RootNamespace>FuryEqualize.UI</RootNamespace>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationIcon>Assets\App.ico</ApplicationIcon>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
+    <Resource Include="Assets\App.ico" />
     <!-- Copia DLL nativa para output -->
     <None Include="..\..\core\build\Release\FuryEqualizeCore.dll" Link="FuryEqualizeCore.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\..\core\build\Release\FuryEqualizeCore.dll')" />
     <!-- Presets JSON (local AppData ou API) -->

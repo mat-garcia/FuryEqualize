@@ -32,7 +32,7 @@ public partial class MainWindow : Window
         {
             Text = "FuryEqualize",
             Visible = true,
-            Icon = System.Drawing.SystemIcons.Application
+            Icon = LoadAppIcon()
         };
         var menu = new Forms.ContextMenuStrip();
         menu.Items.Add("Abrir", null, (_, _) => { Show(); WindowState = WindowState.Normal; Activate(); });
@@ -47,6 +47,24 @@ public partial class MainWindow : Window
         menu.Items.Add("Sair", null, (_, _) => { _tray.Visible = false; System.Windows.Application.Current.Shutdown(); });
         _tray.ContextMenuStrip = menu;
         _tray.DoubleClick += (_, _) => { Show(); WindowState = WindowState.Normal; };
+    }
+
+    private static System.Drawing.Icon LoadAppIcon()
+    {
+        try
+        {
+            var sri = System.Windows.Application.GetResourceStream(
+                new Uri("pack://application:,,,/Assets/App.ico"));
+            if (sri != null)
+            {
+                using (sri.Stream)
+                {
+                    return new System.Drawing.Icon(sri.Stream);
+                }
+            }
+        }
+        catch { }
+        return System.Drawing.SystemIcons.Application;
     }
 
     private void SetupHotkeys(IntPtr hwnd)

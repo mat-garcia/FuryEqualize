@@ -46,6 +46,7 @@ int32_t AudioEngine_GetDevices(FuryDeviceInfo* out, int32_t maxCount) {
 int32_t AudioEngine_SetMasterVolume(float db){ fury::wasapi::globalEngine().setMasterVolume(db); return FURY_OK; }
 float AudioEngine_GetMasterVolume(){ return fury::wasapi::globalEngine().getMasterVolume(); }
 int32_t AudioEngine_SetSniperPreset(const SniperPresetParams* p){ if(!p) return FURY_ERR_INVALID_PARAM; fury::wasapi::globalEngine().setSniperPreset(*p); return FURY_OK; }
+extern "C" __declspec(dllexport) int32_t AudioEngine_SetChannelGain(int channel, float linearGain){ if(linearGain < 0 || linearGain > 2) return FURY_ERR_INVALID_PARAM; fury::wasapi::globalEngine().setChannelGain(channel, linearGain); return FURY_OK; }
 int32_t AudioEngine_LoadSniperPresetJson(const char* path){ if(!path) return FURY_ERR_INVALID_PARAM; return fury::wasapi::globalEngine().loadSniperPresetJson(path); }
 float AudioEngine_GetInputLevelDb() { return fury::wasapi::globalEngine().inputLevelDb(); }
 float AudioEngine_GetGainReductionDb() { return fury::wasapi::globalEngine().gainReductionDb(); }

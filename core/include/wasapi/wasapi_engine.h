@@ -30,6 +30,7 @@ public:
     std::string getRenderDevice() const { return renderDeviceId_; }
     void setMasterVolume(float db);
     float getMasterVolume() const { return masterVolumeDb_; }
+    void setChannelGain(int channel, float linearGain); // 7.1 mixer: canal 0-7, ganho linear 0..2
     void setSniperPreset(const SniperPresetParams& p);
     int loadSniperPresetJson(const std::string& path);
 
@@ -62,6 +63,10 @@ private:
     float eqLow_=0, eqPeak_=0, eqHigh_=0;
     float masterVolumeDb_ = 0.0f;
     float masterLinear_ = 1.0f;
+    // Per-channel gains for 7.1 mixer (linear 0..2, i.e. 0..+6dB)
+    float lfeGainDb_ = 0.0f;
+    float chGainL_[8] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+    float chGainR_[8] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
     SniperPresetParams sniperPreset_{};
 
     std::atomic<float> inputLevelDb_{-120.f};

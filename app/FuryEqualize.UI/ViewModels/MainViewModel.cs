@@ -39,6 +39,8 @@ public class MainViewModel : INotifyPropertyChanged
             try{ var sp = SniperPresetService.LoadDefault(); MasterVolumeDb = sp.masterVolumeDb; } catch{}
         }
         StatusText = $"Preset: {value.Name}";
+        // Load channel gains from preset when selected
+        LoadChannelGainsFromPreset(value);
     } }
 
     private int _selectedBuffer = 256;
@@ -61,10 +63,45 @@ public class MainViewModel : INotifyPropertyChanged
     public float MasterVolumeDb { get => _masterVolumeDb; set { _masterVolumeDb = Math.Clamp(value, -24, 24); OnPropertyChanged(); OnPropertyChanged(nameof(MasterVolumePercent)); if(AudioEngineInterop.IsAvailable) AudioEngineInterop.AudioEngine_SetMasterVolume(_masterVolumeDb); } }
     public int MasterVolumePercent => (int)(Math.Pow(10, MasterVolumeDb/20)*100);
 
+    // Sniper preset adjustable parameters (real-time control)
+    private float _thresholdDb = -41f;
+    public float ThresholdDb { get => _thresholdDb; set { _thresholdDb = Math.Clamp(value, -60, 0); OnPropertyChanged(); if(AudioEngineInterop.IsAvailable) AudioEngineInterop.AudioEngine_SetPreset(_thresholdDb, Ratio, AttackMs, ReleaseMs, MakeupDb); } }
+
+    private float _ratio = 8f;
+    public float Ratio { get => _ratio; set { _ratio = Math.Clamp(value, 1f, 20f); OnPropertyChanged(); if(AudioEngineInterop.IsAvailable) AudioEngineInterop.AudioEngine_SetPreset(ThresholdDb, _ratio, AttackMs, ReleaseMs, MakeupDb); } }
+
+    private float _attackMs = 0.51f;
+    public float AttackMs { get => _attackMs; set { _attackMs = Math.Clamp(value, 0.1f, 100f); OnPropertyChanged(); if(AudioEngineInterop.IsAvailable) AudioEngineInterop.AudioEngine_SetPreset(ThresholdDb, Ratio, _attackMs, ReleaseMs, MakeupDb); } }
+
+    private float _releaseMs = 120f;
+    public float ReleaseMs { get => _releaseMs; set { _releaseMs = Math.Clamp(value, 10f, 500f); OnPropertyChanged(); if(AudioEngineInterop.IsAvailable) AudioEngineInterop.AudioEngine_SetPreset(ThresholdDb, Ratio, AttackMs, _releaseMs, MakeupDb); } }
+
+    private float _makeupDb = 5.98f;
+    public float MakeupDb { get => _makeupDb; set { _makeupDb = Math.Clamp(value, -12, 24); OnPropertyChanged(); if(AudioEngineInterop.IsAvailable) AudioEngineInterop.AudioEngine_SetPreset(ThresholdDb, Ratio, AttackMs, ReleaseMs, _makeupDb); } }
+
+    private float _lfeGate = -50f;
+    public float LfeGate { get => _lfeGate; set { _lfeGate = Math.Clamp(value, -80, 0); OnPropertyChanged(); } }
+
+    private float _frontLockEng = 4f;
+    public float FrontLockEng { get => _frontLockEng; set { _frontLockEng = Math.Clamp(value, 0f, 20f); OnPropertyChanged(); } }
+
+    private float _frontLockRel = 2f;
+    public float FrontLockRel { get => _frontLockRel; set { _frontLockRel = Math.Clamp(value, 0f, 20f); OnPropertyChanged(); } }
+
+    private float _fcCrack = -9.44f;
+    public float FcCrack { get => _fcCrack; set { _fcCrack = value; OnPropertyChanged(); } }
+
+    private float _tier2Centered = -3.6f;
+    public float Tier2Centered { get => _tier2Centered; set { _tier2Centered = value; OnPropertyChanged(); } }
+
     // 7.1 Mixer (Sauda)
     public ObservableCollection<ChannelViewModel> Channels71 { get; } = new();
     private float _lfeGainDb = 0f;
     public float LfeGainDb { get => _lfeGainDb; set { _lfeGainDb = Math.Clamp(value, -24, 12); OnPropertyChanged(); if(AudioEngineInterop.IsAvailable) AudioEngineInterop.AudioEngine_SetChannelGain(3, (float)Math.Pow(10, value/20)); } }
+
+    // Per-preset channel gain tracking (index -> gain linear)
+    private readonly Dictionary<int, float[]> _presetChannelGains = new();
+    private float[] _currentChannelGains;
 
     public ICommand ResetChannels71Command { get; }
 
@@ -73,17 +110,28 @@ public class MainViewModel : INotifyPropertyChanged
         ResetChannels71Command = new RelayCommand(() => {
             foreach(var c in Channels71) c.GainLinear = 1.0f;
             LfeGainDb = 0;
-            if(AudioEngineInterop.IsAvailable){
-                for(int i=0;i<8;i++) AudioEngineInterop.AudioEngine_SetChannelGain(i, 1.0f);
-                AudioEngineInterop.AudioEngine_SetChannelGain(3, 1.0f);
-            }
             StatusText = "7.1 Mixer resetado";
         });
         // 7.1 Mixer init (Sauda order: FL, FR, FC, LFE, BL, BR, SL, SR)
         var chNames = new[] { ("FL","FL"), ("FR","FR"), ("FC","FC"), ("LFE","LFE"), ("BL","BL"), ("BR","BR"), ("SL","SL"), ("SR","SR") };
         for(int i=0;i<8;i++) Channels71.Add(new ChannelViewModel(i, chNames[i].Item1, chNames[i].Item2));
         
+        // Initialize current channel gains (8 channels)
+        _currentChannelGains = new float[8];
+        for(int i=0;i<8;i++) _currentChannelGains[i] = 1.0f;
+        
+        // Initialize preset channel gains from defaults
+        foreach(var p in Presets){
+            if(p.ChannelGains != null && p.ChannelGains.Length == 8){
+                _presetChannelGains[Presets.IndexOf(p)] = (float[])p.ChannelGains.Clone();
+            } else {
+                _presetChannelGains[Presets.IndexOf(p)] = new float[8] { 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f };
+            }
+        }
+        
         RefreshDevices();
+        // Load channel gains from initially selected preset
+        LoadChannelGainsFromPreset(SelectedPreset);
         _meterTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(80) };
         _meterTimer.Tick += (_, _) =>
         {
@@ -94,6 +142,22 @@ public class MainViewModel : INotifyPropertyChanged
             }
         };
         _meterTimer.Start();
+    }
+
+    private void LoadChannelGainsFromPreset(Preset preset){
+        var idx = Presets.IndexOf(preset);
+        if(_presetChannelGains.TryGetValue(idx, out var gains)){
+            _currentChannelGains = gains;
+            for(int i=0;i<8;i++){
+                Channels71[i].GainLinear = gains[i];
+            }
+        }
+    }
+
+    public void SaveChannelGainsToPreset(Preset preset){
+        var idx = Presets.IndexOf(preset);
+        _presetChannelGains[idx] = (float[])_currentChannelGains.Clone();
+        // Note: Preset is immutable, gains tracked separately in _presetChannelGains dict
     }
 
     static DeviceItem Map(FuryDeviceInfo f) => new DeviceItem {
